@@ -144,7 +144,7 @@ if page == 'Overview':
       improving its profitability ratios?
     """)
 
-st.caption(
+    st.caption(
         "Analysis based on historical consolidated "
         "financial figures. Potential drivers require "
         "verification against the annual report."
