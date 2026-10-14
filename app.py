@@ -144,7 +144,7 @@ if page == 'Overview':
       improving its profitability ratios?
     """)
 
-    st.caption(
+st.caption(
         "Analysis based on historical consolidated "
         "financial figures. Potential drivers require "
         "verification against the annual report."
@@ -152,52 +152,70 @@ if page == 'Overview':
     st.divider()
     st.subheader("Financial Health Analysis")
 
+    # The latest selected year controls the financial snapshot
+    current_year = int(latest["Year"])
+
+    # Find the previous calendar year in the full dataset
+    prior_rows = df[df["Year"] == current_year - 1]
+    prior = prior_rows.iloc[0] if not prior_rows.empty else None
+
     asset_growth = (
-        df.loc[df["Year"] == 2024, "Total_Assets"].iloc[0]
-        / df.loc[df["Year"] == 2023, "Total_Assets"].iloc[0]
-        - 1
-    ) * 100
+        (latest["Total_Assets"] / prior["Total_Assets"] - 1) * 100
+        if prior is not None else None
+    )
 
     equity_growth = (
-        df.loc[df["Year"] == 2024, "Shareholders_Equity"].iloc[0]
-        / df.loc[df["Year"] == 2023, "Shareholders_Equity"].iloc[0]
-        - 1
-    ) * 100
+        (latest["Shareholders_Equity"] /
+         prior["Shareholders_Equity"] - 1) * 100
+        if prior is not None else None
+    )
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.metric(
-            "Total Assets (2024)",
-            "€56.35B",
-            f"+{asset_growth:.2f}% vs 2023"
+            f"Total Assets ({current_year})",
+            f"€{latest['Total_Assets']/1000:.2f}B",
+            f"{asset_growth:+.2f}% YoY"
+            if asset_growth is not None else None
         )
 
     with col2:
         st.metric(
-            "Shareholders' Equity (2024)",
-            "€33.13B",
-            f"+{equity_growth:.2f}% vs 2023"
+            f"Shareholders' Equity ({current_year})",
+            f"€{latest['Shareholders_Equity']/1000:.2f}B",
+            f"{equity_growth:+.2f}% YoY"
+            if equity_growth is not None else None
         )
 
     st.markdown("#### Financial Interpretation")
 
-    st.write(
-        f"L'Oréal's total assets increased by {asset_growth:.2f}% "
-        f"in 2024, while shareholders' equity increased by "
-        f"{equity_growth:.2f}%. Despite these increases, "
-        "ROA and ROE declined, indicating that earnings "
-        "grew more slowly than the average asset and "
-        "equity bases."
+    if prior is None:
+        st.info(
+            f"{current_year} is the earliest year available. "
+            "Previous-year growth cannot be calculated."
+        )
+    else:
+        st.write(
+            f"In {current_year}, total assets changed by "
+            f"{asset_growth:+.2f}% and shareholders' equity "
+            f"changed by {equity_growth:+.2f}% compared "
+            f"with {current_year - 1}."
+        )
+
+        if pd.notna(latest["ROA"]) and pd.notna(latest["ROE"]):
+            st.write(
+                f"Return on Assets was {latest['ROA']:.2f}%, "
+                f"while Return on Equity was "
+                f"{latest['ROE']:.2f}%."
+            )
+
+    st.caption(
+        "Growth rates use the preceding calendar year "
+        "from the full dataset, even if it is not selected."
     )
 
-    st.info(
-        "Analyst insight: Asset and equity growth should "
-        "be evaluated alongside profitability and capital "
-        "efficiency. Higher assets do not automatically "
-        "mean stronger financial returns."
-    )
-
+ 
 
 
 elif page == 'Financial Trends':
