@@ -40,11 +40,30 @@ def load_data():
     df['ROE'] = df['Profit_Attributable']/df['Average_Equity']*100
     return df
 
+# LVMH figures: official consolidated financial statements, EUR millions.
+# Group equity and profit attributable to Group are used together for ROE.
+@st.cache_data
+def load_lvmh_data():
+    data = pd.DataFrame({
+        'Year': [2022, 2023, 2024],
+        'Sales': [79184, 86153, 84683],
+        'Net_Profit': [14751, 15952, 12958],
+        'Profit_Attributable': [14084, 15174, 12550],
+        'Total_Assets': [134646, 143694, 149190],
+        'Shareholders_Equity': [55111, 61017, 67517],
+    })
+    data['Profit_Margin'] = data['Net_Profit'] / data['Sales'] * 100
+    data['Sales_Growth'] = data['Sales'].pct_change() * 100
+    data['ROA'] = data['Net_Profit'] / ((data['Total_Assets'] + data['Total_Assets'].shift(1)) / 2) * 100
+    data['ROE'] = data['Profit_Attributable'] / ((data['Shareholders_Equity'] + data['Shareholders_Equity'].shift(1)) / 2) * 100
+    return data
+
 df = load_data()
+lvmh_df = load_lvmh_data()
 
 st.sidebar.title('📈 FINANCIAL INTELLIGENCE')
 st.sidebar.caption('L’Oréal | Historical analysis')
-page = st.sidebar.radio('Navigation', ['Overview','Financial Trends','Returns & Ratios','Data & Sources'])
+page = st.sidebar.radio('Navigation', ['Overview','Financial Trends','Returns & Ratios','Company Comparison','Data & Sources'])
 selected_years = st.sidebar.multiselect('Financial years', df['Year'].tolist(), default=df['Year'].tolist())
 st.sidebar.caption('Data: EUR millions · 2022–2024')
 
@@ -230,6 +249,54 @@ elif page == 'Financial Trends':
     fig = px.bar(growth,x='Year',y='Growth (%)',color='Metric',barmode='group',color_discrete_sequence=[CYAN,GREEN])
     st.plotly_chart(style_chart(fig,True),use_container_width=True)
     st.caption('Growth rates use the complete underlying dataset, even when a year is hidden by the filter.')
+
+elif page == 'Company Comparison':
+    st.subheader('L’Oréal vs LVMH | Financial benchmarking')
+    st.caption('Historical comparison in EUR millions. L’Oréal focuses on beauty; LVMH operates across several luxury categories, so business-model differences matter.')
+    comparison_year = st.selectbox('Comparison year', sorted(selected_years), index=len(selected_years)-1)
+    loreal = df.loc[df['Year'] == comparison_year].iloc[0]
+    lvmh = lvmh_df.loc[lvmh_df['Year'] == comparison_year].iloc[0]
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric('L’Oréal revenue', f"€{loreal['Sales']/1000:.2f}B")
+    k2.metric('LVMH revenue', f"€{lvmh['Sales']/1000:.2f}B")
+    k3.metric('L’Oréal net margin', f"{loreal['Profit_Margin']:.2f}%")
+    k4.metric('LVMH net margin', f"{lvmh['Profit_Margin']:.2f}%")
+
+    comparison = pd.concat([
+        df.assign(Company='L’Oréal'),
+        lvmh_df.assign(Company='LVMH')
+    ], ignore_index=True)
+    comparison = comparison[comparison['Year'].isin(selected_years)]
+
+    metric_labels = {
+        'Sales': 'Revenue (€M)',
+        'Net_Profit': 'Consolidated net profit (€M)',
+        'Profit_Margin': 'Net profit margin (%)',
+        'Sales_Growth': 'Revenue growth (%)',
+        'ROA': 'Return on assets (%)',
+        'ROE': 'Return on equity (%)',
+    }
+    metric_choice = st.selectbox('Compare financial indicator', list(metric_labels), format_func=lambda x: metric_labels[x])
+    fig = px.bar(comparison, x='Year', y=metric_choice, color='Company', barmode='group',
+                 color_discrete_map={'L’Oréal': CYAN, 'LVMH': GOLD},
+                 labels={metric_choice: metric_labels[metric_choice]})
+    st.plotly_chart(style_chart(fig, metric_choice in ['Profit_Margin', 'Sales_Growth', 'ROA', 'ROE']), use_container_width=True)
+
+    st.subheader(f'Financial comparison · {comparison_year}')
+    rows = []
+    for metric_name, label in metric_labels.items():
+        rows.append({'Indicator': label, 'L’Oréal': loreal[metric_name], 'LVMH': lvmh[metric_name]})
+    st.dataframe(pd.DataFrame(rows).set_index('Indicator').style.format('{:,.2f}', na_rep='N/A'), use_container_width=True)
+
+    if comparison_year > 2022:
+        st.markdown('#### Analyst observations')
+        st.write(f"In {comparison_year}, L’Oréal revenue growth was **{loreal['Sales_Growth']:+.2f}%**, compared with **{lvmh['Sales_Growth']:+.2f}%** for LVMH.")
+        st.write(f"L’Oréal’s net margin was **{loreal['Profit_Margin']:.2f}%**, versus **{lvmh['Profit_Margin']:.2f}%** for LVMH.")
+    else:
+        st.info('2022 is the starting year; 2021 data would be needed to calculate 2022 growth and average-balance returns.')
+    st.warning('Interpret ROE carefully: LVMH uses equity attributable to Group. The existing L’Oréal equity input should be checked against the owners-attributable equity line before using ROE as a strict like-for-like benchmark.')
+    st.markdown('**Sources:** [LVMH 2024 Universal Registration Document](https://urd.lvmh.com/en/2024) · [LVMH 2023 Universal Registration Document](https://urd.lvmh.com/en/urd-2023-va_vdef.pdf) · [L’Oréal 2024 Universal Registration Document](https://www.loreal-finance.com/site/URD24/app/en/uploads/2074/Document/loreal-urd-2024-en.82fc3.pdf)')
 
 elif page == 'Returns & Ratios':
     st.subheader('Profitability and capital efficiency')
