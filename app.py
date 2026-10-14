@@ -58,8 +58,27 @@ def load_lvmh_data():
     data['ROE'] = data['Profit_Attributable'] / ((data['Shareholders_Equity'] + data['Shareholders_Equity'].shift(1)) / 2) * 100
     return data
 
+@st.cache_data
+def load_hermes_data():
+    # Hermès Universal Registration Documents 2023 and 2024, EUR millions.
+    # 2022 assets not yet verified; 2023 ROA remains unavailable.
+    data = pd.DataFrame({
+        'Year': [2022, 2023, 2024],
+        'Sales': [11602, 13427, 15170],
+        'Net_Profit': [3380, 4322, 4631],
+        'Profit_Attributable': [3367, 4311, 4603],
+        'Total_Assets': [float('nan'), 20447, 23084],
+        'Shareholders_Equity': [12440, 15201, 17327],
+    })
+    data['Profit_Margin'] = data['Net_Profit'] / data['Sales'] * 100
+    data['Sales_Growth'] = data['Sales'].pct_change() * 100
+    data['ROA'] = data['Net_Profit'] / ((data['Total_Assets'] + data['Total_Assets'].shift(1)) / 2) * 100
+    data['ROE'] = data['Profit_Attributable'] / ((data['Shareholders_Equity'] + data['Shareholders_Equity'].shift(1)) / 2) * 100
+    return data
+
 df = load_data()
 lvmh_df = load_lvmh_data()
+hermes_df = load_hermes_data()
 
 st.sidebar.title('📈 FINANCIAL INTELLIGENCE')
 st.sidebar.caption('L’Oréal | Historical analysis')
@@ -251,24 +270,20 @@ elif page == 'Financial Trends':
     st.caption('Growth rates use the complete underlying dataset, even when a year is hidden by the filter.')
 
 elif page == 'Company Comparison':
-    st.subheader('L’Oréal vs LVMH | Financial benchmarking')
-    st.caption('Historical comparison in EUR millions. L’Oréal focuses on beauty; LVMH operates across several luxury categories, so business-model differences matter.')
+    st.subheader('Three-company financial benchmarking')
+    st.caption('L’Oréal · LVMH · Hermès | EUR millions. Business models differ; ratios are descriptive, not investment rankings.')
     comparison_year = st.selectbox('Comparison year', sorted(selected_years), index=len(selected_years)-1)
-    loreal = df.loc[df['Year'] == comparison_year].iloc[0]
-    lvmh = lvmh_df.loc[lvmh_df['Year'] == comparison_year].iloc[0]
+    companies = {'L’Oréal': df, 'LVMH': lvmh_df, 'Hermès': hermes_df}
+    current = {name: data.loc[data['Year'] == comparison_year].iloc[0] for name, data in companies.items()}
 
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric('L’Oréal revenue', f"€{loreal['Sales']/1000:.2f}B")
-    k2.metric('LVMH revenue', f"€{lvmh['Sales']/1000:.2f}B")
-    k3.metric('L’Oréal net margin', f"{loreal['Profit_Margin']:.2f}%")
-    k4.metric('LVMH net margin', f"{lvmh['Profit_Margin']:.2f}%")
+    cards = st.columns(3)
+    for card, (name, record) in zip(cards, current.items()):
+        with card:
+            st.metric(f'{name} revenue', f"€{record['Sales']/1000:.2f}B")
+            st.metric('Net profit margin', f"{record['Profit_Margin']:.2f}%")
 
-    comparison = pd.concat([
-        df.assign(Company='L’Oréal'),
-        lvmh_df.assign(Company='LVMH')
-    ], ignore_index=True)
+    comparison = pd.concat([data.assign(Company=name) for name, data in companies.items()], ignore_index=True)
     comparison = comparison[comparison['Year'].isin(selected_years)]
-
     metric_labels = {
         'Sales': 'Revenue (€M)',
         'Net_Profit': 'Consolidated net profit (€M)',
@@ -279,24 +294,23 @@ elif page == 'Company Comparison':
     }
     metric_choice = st.selectbox('Compare financial indicator', list(metric_labels), format_func=lambda x: metric_labels[x])
     fig = px.bar(comparison, x='Year', y=metric_choice, color='Company', barmode='group',
-                 color_discrete_map={'L’Oréal': CYAN, 'LVMH': GOLD},
+                 color_discrete_map={'L’Oréal': CYAN, 'LVMH': GOLD, 'Hermès': GREEN},
                  labels={metric_choice: metric_labels[metric_choice]})
     st.plotly_chart(style_chart(fig, metric_choice in ['Profit_Margin', 'Sales_Growth', 'ROA', 'ROE']), use_container_width=True)
 
     st.subheader(f'Financial comparison · {comparison_year}')
-    rows = []
-    for metric_name, label in metric_labels.items():
-        rows.append({'Indicator': label, 'L’Oréal': loreal[metric_name], 'LVMH': lvmh[metric_name]})
+    rows = [dict(Indicator=label, **{name: record[metric] for name, record in current.items()})
+            for metric, label in metric_labels.items()]
     st.dataframe(pd.DataFrame(rows).set_index('Indicator').style.format('{:,.2f}', na_rep='N/A'), use_container_width=True)
 
     if comparison_year > 2022:
         st.markdown('#### Analyst observations')
-        st.write(f"In {comparison_year}, L’Oréal revenue growth was **{loreal['Sales_Growth']:+.2f}%**, compared with **{lvmh['Sales_Growth']:+.2f}%** for LVMH.")
-        st.write(f"L’Oréal’s net margin was **{loreal['Profit_Margin']:.2f}%**, versus **{lvmh['Profit_Margin']:.2f}%** for LVMH.")
+        for name, record in current.items():
+            st.write(f"**{name}:** Revenue growth {record['Sales_Growth']:+.2f}%; net profit margin {record['Profit_Margin']:.2f}%.")
     else:
-        st.info('2022 is the starting year; 2021 data would be needed to calculate 2022 growth and average-balance returns.')
-    st.warning('Interpret ROE carefully: LVMH uses equity attributable to Group. The existing L’Oréal equity input should be checked against the owners-attributable equity line before using ROE as a strict like-for-like benchmark.')
-    st.markdown('**Sources:** [LVMH 2024 Universal Registration Document](https://urd.lvmh.com/en/2024) · [LVMH 2023 Universal Registration Document](https://urd.lvmh.com/en/urd-2023-va_vdef.pdf) · [L’Oréal 2024 Universal Registration Document](https://www.loreal-finance.com/site/URD24/app/en/uploads/2074/Document/loreal-urd-2024-en.82fc3.pdf)')
+        st.info('2022 is the starting year; prior-year balances and growth rates are unavailable.')
+    st.warning('Hermès 2022 total assets have not been verified, so its 2022 assets and 2023 ROA display N/A. 2022 ROA and ROE are unavailable for all companies without 2021 balances. L’Oréal equity classification should be independently checked before strict ROE comparisons.')
+    st.markdown('**Official sources:** [Hermès 2024 report](https://hermes.fr.digital-report.net/en/report/3625) · [Hermès 2023 report](https://assets-finance.hermes.com/s3fs-public/node/pdf_file/2024-06/1719224333/240326_hermes_2023urd_en_01.pdf) · [LVMH 2024 report](https://urd.lvmh.com/en/2024) · [L’Oréal 2024 report](https://www.loreal-finance.com/site/URD24/app/en/uploads/2074/Document/loreal-urd-2024-en.82fc3.pdf)')
 
 elif page == 'Returns & Ratios':
     st.subheader('Profitability and capital efficiency')
