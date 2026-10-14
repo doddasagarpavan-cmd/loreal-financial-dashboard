@@ -100,6 +100,56 @@ if page == 'Overview':
     else:
         st.info('2022 is the first year in this dataset; prior-year growth is unavailable.')
     st.caption('Observations are descriptive, not explanations of causation.')
+    st.divider()
+    st.subheader("Executive Financial Analysis")
+
+    st.info(
+        "L'Oréal recorded revenue and net profit growth "
+        "between 2022 and 2024. However, profitability "
+        "ratios weakened in 2024, indicating that "
+        "financial performance should be assessed "
+        "beyond headline revenue growth."
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("#### Revenue & Profitability")
+        st.write(
+            "In 2024, revenue increased by approximately "
+            "5.60%, while net profit grew by 3.65%. "
+            "Because profit grew more slowly than sales, "
+            "the net profit margin declined."
+        )
+
+    with col2:
+        st.markdown("#### Shareholder Returns")
+        st.write(
+            "Return on Equity declined from approximately "
+            "21.99% in 2023 to 20.60% in 2024. "
+            "This suggests that average shareholders' "
+            "equity grew faster than profit attributable "
+            "to shareholders."
+        )
+
+    st.markdown("#### Questions for Further Investigation")
+
+    st.markdown("""
+    - Which operating expenses contributed to changes
+      in profitability?
+    - Did acquisitions or investments contribute to
+      growth in total assets?
+    - How did changes in shareholders' equity affect ROE?
+    - Can L'Oréal sustain revenue growth while
+      improving its profitability ratios?
+    """)
+
+    st.caption(
+        "Analysis based on historical consolidated "
+        "financial figures. Potential drivers require "
+        "verification against the annual report."
+    )
+
 
 elif page == 'Financial Trends':
     st.subheader('Financial performance trends')
