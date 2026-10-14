@@ -149,6 +149,7 @@ st.caption(
         "financial figures. Potential drivers require "
         "verification against the annual report."
     )
+
     st.divider()
     st.subheader("Financial Health Analysis")
 
