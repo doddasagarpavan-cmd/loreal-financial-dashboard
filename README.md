@@ -1,3 +1,4 @@
+**Live Interactive Dashboard:** [View Dashboard](https://loreal-financial-dashboard-w7zl5pgwquajpngvzvysts.streamlit.app/)
 # Financial Intelligence Dashboard | L'Oréal, LVMH & Hermès
 
 ## Project Overview
