@@ -149,6 +149,55 @@ if page == 'Overview':
         "financial figures. Potential drivers require "
         "verification against the annual report."
     )
+    st.divider()
+    st.subheader("Financial Health Analysis")
+
+    asset_growth = (
+        df.loc[df["Year"] == 2024, "Total_Assets"].iloc[0]
+        / df.loc[df["Year"] == 2023, "Total_Assets"].iloc[0]
+        - 1
+    ) * 100
+
+    equity_growth = (
+        df.loc[df["Year"] == 2024, "Shareholders_Equity"].iloc[0]
+        / df.loc[df["Year"] == 2023, "Shareholders_Equity"].iloc[0]
+        - 1
+    ) * 100
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(
+            "Total Assets (2024)",
+            "€56.35B",
+            f"+{asset_growth:.2f}% vs 2023"
+        )
+
+    with col2:
+        st.metric(
+            "Shareholders' Equity (2024)",
+            "€33.13B",
+            f"+{equity_growth:.2f}% vs 2023"
+        )
+
+    st.markdown("#### Financial Interpretation")
+
+    st.write(
+        f"L'Oréal's total assets increased by {asset_growth:.2f}% "
+        f"in 2024, while shareholders' equity increased by "
+        f"{equity_growth:.2f}%. Despite these increases, "
+        "ROA and ROE declined, indicating that earnings "
+        "grew more slowly than the average asset and "
+        "equity bases."
+    )
+
+    st.info(
+        "Analyst insight: Asset and equity growth should "
+        "be evaluated alongside profitability and capital "
+        "efficiency. Higher assets do not automatically "
+        "mean stronger financial returns."
+    )
+
 
 
 elif page == 'Financial Trends':
